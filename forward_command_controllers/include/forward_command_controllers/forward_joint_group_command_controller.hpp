@@ -30,15 +30,22 @@ namespace forward_command_controllers
     {
     private:
         std::vector<hardware_interface::JointCommandHandle *> registered_joint_cmd_handles_; ///< handler of the command to send to the robot
-        std::vector<std::string> joint_names_;
-        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr joint_command_subscriber_ = nullptr;
+        std::vector<std::string> joint_names_; ///< list of controlled joints
+        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr joint_command_subscriber_ = nullptr; ///< pointer to the desired command value subscription
 
     public:
         /**
-         * @brief Constructor of the forward_joint_group_command controller
+         * @brief Constructor of the forward joint group command controller
          */
         FORWARD_COMMAND_CONTROLLERS_PUBLIC
         ForwardJointGroupCommandController();
+
+        /**
+         * @brief Constructor of the forward joint group command controller with list of controlled joint specified
+         * @param joint_names the list of controlled joints
+         */
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
+        ForwardJointGroupCommandController(const std::vector<std::string>& joint_names);
 
         /**
          * @brief Init function called to initialize the controller

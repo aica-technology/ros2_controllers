@@ -30,8 +30,8 @@ namespace forward_command_controllers
     {
     private:
         std::vector<hardware_interface::JointCommandHandle *> registered_joint_cmd_handles_; ///< handler of the command to send to the robot
-        std::string joint_name_;
-        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr joint_command_subscriber_ = nullptr;
+        std::string joint_name_; ///< name of the controlled joint
+        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr joint_command_subscriber_ = nullptr; ///< pointer to the desired command value subscription
 
     public:
         /**
