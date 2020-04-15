@@ -5,6 +5,10 @@ namespace position_controllers
 	JointPositionController::JointPositionController()
 	: forward_command_controllers::ForwardJointCommandController()
 	{}
+
+	JointPositionController::JointPositionController(const std::string& joint_name)
+	: forward_command_controllers::ForwardJointCommandController(joint_name)
+	{}
 }
 
 #include "pluginlib/class_list_macros.hpp"

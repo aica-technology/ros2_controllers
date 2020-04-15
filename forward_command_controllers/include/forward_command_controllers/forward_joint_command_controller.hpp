@@ -35,10 +35,17 @@ namespace forward_command_controllers
 
     public:
         /**
-         * @brief Constructor of the forward_command controller
+         * @brief Constructor of the forward joint command controller
          */
         FORWARD_COMMAND_CONTROLLERS_PUBLIC
         ForwardJointCommandController();
+
+        /**
+         * @brief Constructor of the forward joint command controller with joint name specified
+         * @param joint_name name of the joint to control
+         */
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
+        ForwardJointCommandController(const std::string& joint_name);
 
         /**
          * @brief Init function called to initialize the controller
