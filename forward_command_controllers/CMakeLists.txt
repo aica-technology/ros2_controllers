@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(forward_command_controller)
+project(forward_command_controllers)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -39,8 +39,6 @@ ament_target_dependencies(${PROJECT_NAME}
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(${PROJECT_NAME} PRIVATE "FORWARD_COMMAND_CONTROLLER_BUILDING_DLL")
-
-pluginlib_export_plugin_description_file(controller_interface forward_command_controller_plugin.xml)
 
 install(
   DIRECTORY include/

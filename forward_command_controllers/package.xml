@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>forward_command_controller</name>
+  <name>forward_command_controllers</name>
   <version>0.0.0</version>
   <description>TODO</description>
   <maintainer email="baptiste@aica.tech">Baptiste Busch</maintainer>
