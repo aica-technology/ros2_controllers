@@ -3,8 +3,14 @@
 namespace forward_command_controllers
 {
 	ForwardJointGroupCommandController::ForwardJointGroupCommandController()
-    : controller_interface::ControllerInterface()
+    : controller_interface::ControllerInterface(),
+    joint_names_({})
 	{}
+
+    ForwardJointGroupCommandController::ForwardJointGroupCommandController(const std::vector<std::string>& joint_names)
+    : controller_interface::ControllerInterface(),
+    joint_names_(joint_names)
+    {}
 
 	controller_interface::controller_interface_ret_t ForwardJointGroupCommandController::init(std::weak_ptr<hardware_interface::RobotHardware> robot_hardware, const std::string & controller_name)
 	{
@@ -34,6 +40,8 @@ namespace forward_command_controllers
 
         if (auto robot_hardware = this->robot_hardware_.lock())
         {
+            if (this->joint_names_.empty()) RCLCPP_WARN(logger, "no joint names specified");
+
             // register command handle
             this->registered_joint_cmd_handles_.resize(this->joint_names_.size());
             for (size_t index = 0; index < this->joint_names_.size(); ++index)
