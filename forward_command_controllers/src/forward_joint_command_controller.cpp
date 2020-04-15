@@ -1,6 +1,6 @@
-#include "forward_command_controller/forward_joint_command_controller.hpp"
+#include "forward_command_controllers/forward_joint_command_controller.hpp"
 
-namespace forward_command_controller
+namespace forward_command_controllers
 {
 	ForwardJointCommandController::ForwardJointCommandController()
     : controller_interface::ControllerInterface()
@@ -90,7 +90,3 @@ namespace forward_command_controller
     	return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 }
-
-#include "pluginlib/class_list_macros.hpp"
-
-PLUGINLIB_EXPORT_CLASS(forward_command_controller::ForwardJointCommandController, controller_interface::ControllerInterface)

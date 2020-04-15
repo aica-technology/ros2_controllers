@@ -17,28 +17,28 @@
 #include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <lifecycle_msgs/msg/state.hpp>
-#include <std_msgs/msg/float64_multi_array.hpp>
-#include "forward_command_controller/visibility_control.h"
+#include <std_msgs/msg/float64.hpp>
+#include "forward_command_controllers/visibility_control.h"
 
-namespace forward_command_controller
+namespace forward_command_controllers
 {
     /**
-     * @class ForwardJointGroupCommandController
-     * @brief Implemantation of a forward_joint_group_command controller
+     * @class ForwardJointCommandController
+     * @brief Implemantation of a forward_command controller
      */
-    class ForwardJointGroupCommandController : public controller_interface::ControllerInterface
+    class ForwardJointCommandController : public controller_interface::ControllerInterface
     {
     private:
         std::vector<hardware_interface::JointCommandHandle *> registered_joint_cmd_handles_; ///< handler of the command to send to the robot
-        std::vector<std::string> joint_names_;
-        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr joint_command_subscriber_ = nullptr;
+        std::string joint_name_;
+        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr joint_command_subscriber_ = nullptr;
 
     public:
         /**
-         * @brief Constructor of the forward_joint_group_command controller
+         * @brief Constructor of the forward_command controller
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
-        ForwardJointGroupCommandController();
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
+        ForwardJointCommandController();
 
         /**
          * @brief Init function called to initialize the controller
@@ -46,14 +46,14 @@ namespace forward_command_controller
          * @param controller_name name of the controller
          * @return controller_interface::controller_interface_ret_t success of failure return code
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         controller_interface::controller_interface_ret_t init(std::weak_ptr<hardware_interface::RobotHardware> robot_hardware, const std::string & controller_name) override;
 
         /**
          * @brief Update function called to read the robot current state and generate the command
          * @return controller_interface::controller_interface_ret_t success of failure return code
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         controller_interface::controller_interface_ret_t update() override;
 
         /**
@@ -68,7 +68,7 @@ namespace forward_command_controller
          * TRANSITION_CALLBACK_FAILURE transitions to "unconfigured"
          * TRANSITION_CALLBACK_ERROR or any uncaught exceptions to "errorprocessing"
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) override;
         
         /**
@@ -83,7 +83,7 @@ namespace forward_command_controller
          * TRANSITION_CALLBACK_FAILURE transitions to "inactive"
          * TRANSITION_CALLBACK_ERROR or any uncaught exceptions to "errorprocessing"
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) override;
 
         /**
@@ -98,7 +98,7 @@ namespace forward_command_controller
          * TRANSITION_CALLBACK_FAILURE transitions to "active"
          * TRANSITION_CALLBACK_ERROR or any uncaught exceptions to "errorprocessing"
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) override;
 
         /**
@@ -113,7 +113,7 @@ namespace forward_command_controller
          * TRANSITION_CALLBACK_FAILURE transitions to "inactive"
          * TRANSITION_CALLBACK_ERROR or any uncaught exceptions to "errorprocessing"
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State & previous_state) override;
 
         /**
@@ -128,7 +128,7 @@ namespace forward_command_controller
          * TRANSITION_CALLBACK_FAILURE transitions to current state
          * TRANSITION_CALLBACK_ERROR or any uncaught exceptions to "errorprocessing"
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_error(const rclcpp_lifecycle::State & previous_state) override;
 
         /**
@@ -143,7 +143,7 @@ namespace forward_command_controller
          * TRANSITION_CALLBACK_FAILURE transitions to current state
          * TRANSITION_CALLBACK_ERROR or any uncaught exceptions to "errorprocessing"
          */
-        FORWARD_COMMAND_CONTROLLER_PUBLIC
+        FORWARD_COMMAND_CONTROLLERS_PUBLIC
         rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State & previous_state) override;
     };
-}  // namespace forward_joint_group_command_controller
+}  // namespace forward_command_controllers

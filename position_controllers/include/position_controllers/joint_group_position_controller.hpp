@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <forward_command_controller/forward_joint_group_command_controller.hpp>
+#include <forward_command_controllers/forward_joint_group_command_controller.hpp>
 #include "position_controllers/visibility_control.h"
 
 namespace position_controllers
@@ -14,7 +14,7 @@ namespace position_controllers
      * @class JointGroupPositionController
      * @brief Implemantation of a position controller
      */
-    class JointGroupPositionController : public forward_command_controller::ForwardJointGroupCommandController
+    class JointGroupPositionController : public forward_command_controllers::ForwardJointGroupCommandController
     {
     public:
         /**

@@ -3,7 +3,7 @@
 namespace position_controllers
 {
 	JointGroupPositionController::JointGroupPositionController()
-	: forward_command_controller::ForwardJointGroupCommandController()
+	: forward_command_controllers::ForwardJointGroupCommandController()
 	{}
 }
 

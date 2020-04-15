@@ -18,7 +18,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(forward_command_controller REQUIRED)
+find_package(forward_command_controllers REQUIRED)
 
 add_library(${PROJECT_NAME}
   SHARED
@@ -36,7 +36,7 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp_lifecycle
   rcutils
   std_msgs
-  forward_command_controller
+  forward_command_controllers
 )
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
@@ -70,7 +70,7 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_joint_position_controller
     controller_manager
     test_robot_hardware
-    forward_command_controller
+    forward_command_controllers
   )
 
   ament_add_gtest(test_joint_group_position_controller test/test_joint_group_position_controller.cpp)
@@ -78,7 +78,7 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_joint_group_position_controller
     controller_manager
     test_robot_hardware
-    forward_command_controller
+    forward_command_controllers
   )
 endif()
 
@@ -88,7 +88,7 @@ ament_export_dependencies(
   rclcpp
   rclcpp_lifecycle
   std_msgs
-  forward_command_controller
+  forward_command_controllers
 )
 
 ament_export_include_directories(
