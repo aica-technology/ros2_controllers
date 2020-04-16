@@ -32,4 +32,4 @@ namespace position_controllers
         POSITION_CONTROLLERS_PUBLIC
         JointGroupPositionController(const std::vector<std::string>& joint_names);
     };
-}  // namespace position_controller
+}  // namespace position_controllers
