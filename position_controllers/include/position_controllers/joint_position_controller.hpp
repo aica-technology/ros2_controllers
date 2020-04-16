@@ -31,4 +31,4 @@ namespace position_controllers
         POSITION_CONTROLLERS_PUBLIC
         JointPositionController(const std::string& joint_name);
     };
-}  // namespace position_controller
+}  // namespace position_controllers
