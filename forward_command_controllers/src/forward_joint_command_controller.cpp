@@ -82,7 +82,7 @@ namespace forward_command_controllers
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn ForwardJointCommandController::on_cleanup(const rclcpp_lifecycle::State&)
     {
-    	// TODO clean controller
+    	this->registered_joint_cmd_handles_.clear();
     	return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 
@@ -94,7 +94,7 @@ namespace forward_command_controllers
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn ForwardJointCommandController::on_shutdown(const rclcpp_lifecycle::State&)
     {
-    	// TODO shutdown controller
+    	this->registered_joint_cmd_handles_.clear();
     	return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     }
 }
