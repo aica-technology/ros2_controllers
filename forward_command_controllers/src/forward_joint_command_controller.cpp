@@ -40,14 +40,18 @@ namespace forward_command_controllers
 
         if (auto robot_hardware = this->robot_hardware_.lock())
         {
-            if (this->joint_name_ == "") RCLCPP_WARN(logger, "no joint name specified");
+            if (this->joint_name_ == "") 
+            {
+                RCLCPP_ERROR(logger, "no joint name specified");
+                return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+            }
 
             // register command handle
             this->registered_joint_cmd_handles_.resize(1);
             auto ret = robot_hardware->get_joint_command_handle(this->joint_name_.c_str(), &this->registered_joint_cmd_handles_[0]);
             if (ret != hardware_interface::HW_RET_OK)
             {
-                RCLCPP_WARN(logger, "unable to obtain joint command handle for %s", this->joint_name_.c_str());
+                RCLCPP_ERROR(logger, "unable to obtain joint command handle for %s", this->joint_name_.c_str());
                 return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
             }
         }
