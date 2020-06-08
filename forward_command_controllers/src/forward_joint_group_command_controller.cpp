@@ -67,7 +67,7 @@ namespace forward_command_controllers
             if (this->registered_joint_cmd_handles_.size() != msg->data.size())
             {
                 RCLCPP_ERROR(logger,
-                             "number of joints in joint trajectory msg (%d) "
+                             "number of joints in command msg (%d) "
                              "does not match number of joint command handles (%d)\n",
                              msg->data.size(), this->registered_joint_cmd_handles_.size()
                             );
