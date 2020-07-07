@@ -14,12 +14,27 @@
 
 #include "joint_state_controller/joint_state_controller.hpp"
 
-#include <string>
+#include <stddef.h>
+#include <limits>
 #include <memory>
+#include <string>
 
-#include "rclcpp_lifecycle/state.hpp"
 
+#include "hardware_interface/joint_state_handle.hpp"
+#include "hardware_interface/robot_hardware.hpp"
+#include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "rclcpp/clock.hpp"
+#include "rclcpp/qos.hpp"
+#include "rclcpp/qos_event.hpp"
+#include "rclcpp/time.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "rcutils/logging_macros.h"
+#include "std_msgs/msg/header.hpp"
+
+namespace rclcpp_lifecycle
+{
+class State;
+}  // namespace rclcpp_lifecycle
 
 namespace joint_state_controller
 {
@@ -29,10 +44,8 @@ JointStateController::JointStateController()
 {}
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
-JointStateController::on_configure(const rclcpp_lifecycle::State & previous_state)
+JointStateController::on_configure(const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  (void) previous_state;
-
   if (auto sptr = robot_hardware_.lock()) {
     registered_joint_handles_ = sptr->get_registered_joint_state_handles();
   } else {
@@ -43,20 +56,53 @@ JointStateController::on_configure(const rclcpp_lifecycle::State & previous_stat
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
   }
 
-  size_t num_joints = registered_joint_handles_.size();
-  // default initialize joint state message
+  const size_t num_joints = registered_joint_handles_.size();
+
+  // default initialization for joint state message
   joint_state_msg_.position.resize(num_joints);
   joint_state_msg_.velocity.resize(num_joints);
   joint_state_msg_.effort.resize(num_joints);
+
+  // default initialization for dynamic joint state message
+  control_msgs::msg::InterfaceValue default_if_value;
+  default_if_value.interface_names = {"position", "velocity", "effort"};
+  default_if_value.values.resize(
+    default_if_value.interface_names.size(), std::numeric_limits<double>::quiet_NaN());
+
   // set known joint names
   joint_state_msg_.name.reserve(num_joints);
-  for (auto joint_handle : registered_joint_handles_) {
+  dynamic_joint_state_msg_.joint_names.reserve(num_joints);
+  for (const auto joint_handle : registered_joint_handles_) {
     joint_state_msg_.name.push_back(joint_handle->get_name());
+
+    dynamic_joint_state_msg_.joint_names.push_back(joint_handle->get_name());
+    dynamic_joint_state_msg_.interface_values.push_back(default_if_value);
   }
 
   joint_state_publisher_ = lifecycle_node_->create_publisher<sensor_msgs::msg::JointState>(
     "joint_states", rclcpp::SystemDefaultsQoS());
+
+  dynamic_joint_state_publisher_ =
+    lifecycle_node_->create_publisher<control_msgs::msg::DynamicJointState>(
+    "dynamic_joint_states", rclcpp::SystemDefaultsQoS());
+
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+JointStateController::on_activate(const rclcpp_lifecycle::State & /*previous_state*/)
+{
   joint_state_publisher_->on_activate();
+  dynamic_joint_state_publisher_->on_activate();
+
+  return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+}
+
+rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
+JointStateController::on_deactivate(const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  joint_state_publisher_->on_deactivate();
+  dynamic_joint_state_publisher_->on_deactivate();
 
   return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -69,17 +115,29 @@ JointStateController::update()
     return hardware_interface::HW_RET_ERROR;
   }
 
+  if (!dynamic_joint_state_publisher_->is_activated()) {
+    RCUTILS_LOG_WARN_ONCE_NAMED("publisher", "dynamic joint state publisher is not activated");
+    return hardware_interface::HW_RET_ERROR;
+  }
+
   joint_state_msg_.header.stamp = rclcpp::Clock().now();
   size_t i = 0;
   for (auto joint_state_handle : registered_joint_handles_) {
     joint_state_msg_.position[i] = joint_state_handle->get_position();
     joint_state_msg_.velocity[i] = joint_state_handle->get_velocity();
     joint_state_msg_.effort[i] = joint_state_handle->get_effort();
+
+    dynamic_joint_state_msg_.interface_values[i].values[0] = joint_state_handle->get_position();
+    dynamic_joint_state_msg_.interface_values[i].values[1] = joint_state_handle->get_velocity();
+    dynamic_joint_state_msg_.interface_values[i].values[2] = joint_state_handle->get_effort();
+
     ++i;
   }
 
   // publish
   joint_state_publisher_->publish(joint_state_msg_);
+  dynamic_joint_state_publisher_->publish(dynamic_joint_state_msg_);
+
   return hardware_interface::HW_RET_OK;
 }
 

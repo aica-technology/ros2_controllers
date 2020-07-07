@@ -16,10 +16,10 @@
 #include <memory>
 
 #include "controller_manager/controller_manager.hpp"
-
-#include "test_robot_hardware/test_robot_hardware.hpp"
-
+#include "rclcpp/executor.hpp"
+#include "rclcpp/executors/single_threaded_executor.hpp"
 #include "rclcpp/utilities.hpp"
+#include "test_robot_hardware/test_robot_hardware.hpp"
 
 TEST(TestLoadJointStateController, load_controller)
 {
@@ -30,7 +30,7 @@ TEST(TestLoadJointStateController, load_controller)
 
   robot->init();
 
-  std::shared_ptr<rclcpp::executor::Executor> executor =
+  std::shared_ptr<rclcpp::Executor> executor =
     std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
 
   controller_manager::ControllerManager cm(robot, executor, "test_controller_manager");
