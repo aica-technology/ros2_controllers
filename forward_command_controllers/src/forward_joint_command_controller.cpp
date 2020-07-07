@@ -12,23 +12,23 @@ namespace forward_command_controllers
     joint_name_(joint_name)
     {}
 
-	controller_interface::controller_interface_ret_t ForwardJointCommandController::init(std::weak_ptr<hardware_interface::RobotHardware> robot_hardware, const std::string & controller_name)
+	controller_interface::return_type ForwardJointCommandController::init(std::weak_ptr<hardware_interface::RobotHardware> robot_hardware, const std::string & controller_name)
 	{
 		// initialize lifecycle node
   		auto ret = ControllerInterface::init(robot_hardware, controller_name);
-  		if (ret != controller_interface::CONTROLLER_INTERFACE_RET_SUCCESS)
+  		if (ret != controller_interface::return_type::SUCCESS)
   		{
     		return ret;
   		}
   		// initialize joint name parameter
         this->lifecycle_node_->declare_parameter<std::string>("joint", this->joint_name_);
-  		return controller_interface::CONTROLLER_INTERFACE_RET_SUCCESS;
+  		return controller_interface::return_type::SUCCESS;
 	}
 
-    controller_interface::controller_interface_ret_t ForwardJointCommandController::update()
+    controller_interface::return_type ForwardJointCommandController::update()
     {
-    	if (lifecycle_node_->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) return controller_interface::CONTROLLER_INTERFACE_RET_SUCCESS;
-    	return controller_interface::CONTROLLER_INTERFACE_RET_SUCCESS;
+    	if (lifecycle_node_->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) return controller_interface::return_type::SUCCESS;
+    	return controller_interface::return_type::SUCCESS;
     }
 
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn ForwardJointCommandController::on_configure(const rclcpp_lifecycle::State&)
@@ -49,7 +49,7 @@ namespace forward_command_controllers
             // register command handle
             this->registered_joint_cmd_handles_.resize(1);
             auto ret = robot_hardware->get_joint_command_handle(this->joint_name_.c_str(), &this->registered_joint_cmd_handles_[0]);
-            if (ret != hardware_interface::HW_RET_OK)
+            if (ret != hardware_interface::return_type::OK)
             {
                 RCLCPP_ERROR(logger, "unable to obtain joint command handle for %s", this->joint_name_.c_str());
                 return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;

@@ -51,17 +51,17 @@ namespace forward_command_controllers
          * @brief Init function called to initialize the controller
          * @param robot_hardware pointer to the hardware interface
          * @param controller_name name of the controller
-         * @return controller_interface::controller_interface_ret_t success of failure return code
+         * @return controller_interface::return_type success of failure return code
          */
         FORWARD_COMMAND_CONTROLLERS_PUBLIC
-        controller_interface::controller_interface_ret_t init(std::weak_ptr<hardware_interface::RobotHardware> robot_hardware, const std::string & controller_name) override;
+        controller_interface::return_type init(std::weak_ptr<hardware_interface::RobotHardware> robot_hardware, const std::string & controller_name) override;
 
         /**
          * @brief Update function called to read the robot current state and generate the command
-         * @return controller_interface::controller_interface_ret_t success of failure return code
+         * @return controller_interface::return_type success of failure return code
          */
         FORWARD_COMMAND_CONTROLLERS_PUBLIC
-        controller_interface::controller_interface_ret_t update() override;
+        controller_interface::return_type update() override;
 
         /**
          * @brief Transition callback for state configuring
