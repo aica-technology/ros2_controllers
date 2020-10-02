@@ -26,8 +26,6 @@
 #include "angles/angles.h"
 #include "builtin_interfaces/msg/duration.hpp"
 #include "builtin_interfaces/msg/time.hpp"
-#include "hardware_interface/joint_command_handle.hpp"
-#include "hardware_interface/joint_state_handle.hpp"
 #include "hardware_interface/robot_hardware.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "joint_trajectory_controller/trajectory.hpp"
@@ -111,12 +109,7 @@ JointTrajectoryController::update()
       // error defined as the difference between current and desired
       error.positions[index] = angles::shortest_angular_distance(
         current.positions[index], desired.positions[index]);
-
-      if (!desired.velocities.empty()) {
-        error.velocities[index] = desired.velocities[index] - current.velocities[index];
-      } else {
-        error.velocities[index] = 0.0;
-      }
+      error.velocities[index] = desired.velocities[index] - current.velocities[index];
       error.accelerations[index] = 0.0;
     };
 
@@ -130,14 +123,13 @@ JointTrajectoryController::update()
   }
 
   JointTrajectoryPoint state_current, state_desired, state_error;
-  const auto joint_num = registered_joint_state_handles_.size();
+  const auto joint_num = joint_position_state_handles_.size();
   resize_joint_trajectory_point(state_current, joint_num);
 
   // current state update
   for (auto index = 0ul; index < joint_num; ++index) {
-    auto & joint_state = registered_joint_state_handles_[index];
-    state_current.positions[index] = joint_state->get_position();
-    state_current.velocities[index] = joint_state->get_velocity();
+    state_current.positions[index] = joint_position_state_handles_[index].get_value();
+    state_current.velocities[index] = joint_velocity_state_handles_[index].get_value();
     state_current.accelerations[index] = 0.0;
   }
   state_current.time_from_start.set__sec(0);
@@ -163,7 +155,7 @@ JointTrajectoryController::update()
       const bool before_last_point = end_segment_itr != (*traj_point_active_ptr_)->end();
       for (auto index = 0ul; index < joint_num; ++index) {
         // set values for next hardware write()
-        registered_joint_cmd_handles_[index]->set_cmd(state_desired.positions[index]);
+        joint_position_command_handles_[index].set_value(state_desired.positions[index]);
         compute_error_for_joint(state_error, index, state_current, state_desired);
 
         if (before_last_point && !check_state_tolerance_per_joint(
@@ -178,7 +170,6 @@ JointTrajectoryController::update()
             default_tolerances_.goal_state_tolerance[index], false))
         {
           outside_goal_tolerance = true;
-          break;
         }
       }
 
@@ -194,10 +185,16 @@ JointTrajectoryController::update()
         rt_active_goal_->setFeedback(feedback);
 
         // check abort
-        if (abort) {
-          RCLCPP_WARN(lifecycle_node_->get_logger(), "Aborted due to state tolerance violation");
+        if (abort || outside_goal_tolerance) {
           auto result = std::make_shared<FollowJTrajAction::Result>();
-          result->set__error_code(FollowJTrajAction::Result::PATH_TOLERANCE_VIOLATED);
+
+          if (abort) {
+            RCLCPP_WARN(lifecycle_node_->get_logger(), "Aborted due to state tolerance violation");
+            result->set__error_code(FollowJTrajAction::Result::PATH_TOLERANCE_VIOLATED);
+          } else if (outside_goal_tolerance) {
+            RCLCPP_WARN(lifecycle_node_->get_logger(), "Aborted due to goal tolerance violation");
+            result->set__error_code(FollowJTrajAction::Result::GOAL_TOLERANCE_VIOLATED);
+          }
           rt_active_goal_->setAborted(result);
           rt_active_goal_.reset();
         }
@@ -259,27 +256,33 @@ JointTrajectoryController::on_configure(const rclcpp_lifecycle::State & previous
       RCLCPP_WARN(logger, "no joint names specified");
     }
 
-    // register handles
-    registered_joint_state_handles_.resize(joint_names_.size());
-    for (size_t index = 0; index < joint_names_.size(); ++index) {
-      const auto ret = robot_hardware->get_joint_state_handle(
-        joint_names_[index].c_str(), &registered_joint_state_handles_[index]);
-      if (ret != hardware_interface::return_type::OK) {
-        RCLCPP_WARN(
-          logger, "unable to obtain joint state handle for %s", joint_names_[index].c_str());
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
-      }
+    auto get_handles = [&](const std::string & interface_name,
+        std::vector<hardware_interface::JointHandle> & dst)
+      {
+        for (size_t index = 0; index < joint_names_.size(); ++index) {
+          hardware_interface::JointHandle joint_handle(joint_names_[index], interface_name);
+          const auto ret = robot_hardware->get_joint_handle(joint_handle);
+          if (ret == hardware_interface::return_type::OK) {
+            dst.emplace_back(joint_handle);
+          } else {
+            RCLCPP_WARN(
+              logger, "unable to obtain joint '%s' with interface '%s'",
+              joint_names_[index].c_str(), interface_name.c_str());
+            return false;
+          }
+        }
+        return true;
+      };
+
+    // get joint state and command handles
+    if (!get_handles("position", joint_position_state_handles_) ||
+      !get_handles("velocity", joint_velocity_state_handles_) ||
+      !get_handles("position_command", joint_position_command_handles_))
+    {
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
-    registered_joint_cmd_handles_.resize(joint_names_.size());
-    for (size_t index = 0; index < joint_names_.size(); ++index) {
-      const auto ret = robot_hardware->get_joint_command_handle(
-        joint_names_[index].c_str(), &registered_joint_cmd_handles_[index]);
-      if (ret != hardware_interface::return_type::OK) {
-        RCLCPP_WARN(
-          logger, "unable to obtain joint command handle for %s", joint_names_[index].c_str());
-        return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
-      }
-    }
+
+    // get operation mode handles
     registered_operation_mode_handles_.resize(write_op_names_.size());
     for (size_t index = 0; index < write_op_names_.size(); ++index) {
       const auto ret = robot_hardware->get_operation_mode_handle(
@@ -295,8 +298,9 @@ JointTrajectoryController::on_configure(const rclcpp_lifecycle::State & previous
   }
 
   if (
-    registered_joint_cmd_handles_.empty() ||
-    registered_joint_state_handles_.empty() ||
+    joint_position_command_handles_.empty() ||
+    joint_position_state_handles_.empty() ||
+    joint_velocity_state_handles_.empty() ||
     registered_operation_mode_handles_.empty())
   {
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
@@ -311,10 +315,10 @@ JointTrajectoryController::on_configure(const rclcpp_lifecycle::State & previous
   traj_msg_home_ptr_->points.resize(1);
   traj_msg_home_ptr_->points[0].time_from_start.sec = 0;
   traj_msg_home_ptr_->points[0].time_from_start.nanosec = 50000000;
-  traj_msg_home_ptr_->points[0].positions.resize(registered_joint_state_handles_.size());
-  for (size_t index = 0; index < registered_joint_state_handles_.size(); ++index) {
+  traj_msg_home_ptr_->points[0].positions.resize(joint_position_state_handles_.size());
+  for (size_t index = 0; index < joint_position_state_handles_.size(); ++index) {
     traj_msg_home_ptr_->points[0].positions[index] =
-      registered_joint_state_handles_[index]->get_position();
+      joint_position_state_handles_[index].get_value();
   }
 
   traj_external_point_ptr_ = std::make_shared<Trajectory>();
@@ -323,7 +327,7 @@ JointTrajectoryController::on_configure(const rclcpp_lifecycle::State & previous
   // subscriber call back
   // non realtime
   // TODO(karsten): check if traj msg and point time are valid
-  auto callback = [this, &logger](const std::shared_ptr<trajectory_msgs::msg::JointTrajectory> msg)
+  auto callback = [this](const std::shared_ptr<trajectory_msgs::msg::JointTrajectory> msg)
     -> void
     {
       if (!validate_trajectory_msg(*msg)) {
@@ -464,8 +468,9 @@ JointTrajectoryController::reset()
   // joint_names_.clear();
   // write_op_names_.clear();
 
-  registered_joint_cmd_handles_.clear();
-  registered_joint_state_handles_.clear();
+  joint_position_command_handles_.clear();
+  joint_position_state_handles_.clear();
+  joint_velocity_state_handles_.clear();
   registered_operation_mode_handles_.clear();
 
   subscriber_is_active_ = false;
@@ -503,10 +508,10 @@ JointTrajectoryController::set_op_mode(const hardware_interface::OperationMode &
 void
 JointTrajectoryController::halt()
 {
-  const size_t joint_num = registered_joint_cmd_handles_.size();
+  const size_t joint_num = joint_position_command_handles_.size();
   for (size_t index = 0; index < joint_num; ++index) {
-    registered_joint_cmd_handles_[index]->set_cmd(
-      registered_joint_state_handles_[index]->get_position());
+    joint_position_command_handles_[index].set_value(
+      joint_position_state_handles_[index].get_value());
   }
   set_op_mode(hardware_interface::OperationMode::ACTIVE);
 }
@@ -525,7 +530,6 @@ void JointTrajectoryController::publish_state(
 
   if (state_publisher_ && state_publisher_->trylock()) {
     last_state_publish_time_ = lifecycle_node_->now();
-
     state_publisher_->msg_.header.stamp = last_state_publish_time_;
     state_publisher_->msg_.desired.positions = desired_state.positions;
     state_publisher_->msg_.desired.velocities = desired_state.velocities;
@@ -633,10 +637,10 @@ void JointTrajectoryController::fill_partial_goal(
       }
       trajectory_msg->joint_names.push_back(joint_names_[index]);
 
-      const auto & joint_state = registered_joint_state_handles_[index];
+      const auto & joint_state = joint_position_state_handles_[index];
       for (auto & it : trajectory_msg->points) {
         // Assume hold position with 0 velocity and acceleration for missing joints
-        it.positions.push_back(joint_state->get_position());
+        it.positions.push_back(joint_state.get_value());
         if (!it.velocities.empty()) {
           it.velocities.push_back(0.0);
         }
@@ -692,6 +696,25 @@ void JointTrajectoryController::sort_to_local_joint_order(
   }
 }
 
+bool JointTrajectoryController::validate_trajectory_point_field(
+  size_t joint_names_size,
+  const std::vector<double> & vector_field,
+  const std::string & string_for_vector_field, size_t i, bool allow_empty) const
+{
+  if (allow_empty && vector_field.empty()) {
+    return true;
+  }
+  if (joint_names_size != vector_field.size()) {
+    RCLCPP_ERROR(
+      lifecycle_node_->get_logger(),
+      "Mismatch between joint_names (%u) and %s (%u) at point #%u.",
+      joint_names_size, string_for_vector_field.c_str(), vector_field.size(), i);
+    return false;
+  }
+  return true;
+}
+
+
 bool JointTrajectoryController::validate_trajectory_msg(
   const trajectory_msgs::msg::JointTrajectory & trajectory) const
 {
@@ -712,6 +735,24 @@ bool JointTrajectoryController::validate_trajectory_msg(
     return false;
   }
 
+  const auto trajectory_start_time = static_cast<rclcpp::Time>(trajectory.header.stamp);
+  // If the starting time it set to 0.0, it means the controller should start it now.
+  // Otherwise we check if the trajectory ends before the current time,
+  // in which case it can be ignored.
+  if (trajectory_start_time.seconds() != 0.0) {
+    auto trajectory_end_time = trajectory_start_time;
+    for (const auto & p : trajectory.points) {
+      trajectory_end_time += p.time_from_start;
+    }
+    if (trajectory_end_time < lifecycle_node_->now()) {
+      RCLCPP_ERROR(
+        lifecycle_node_->get_logger(),
+        "Received trajectory with non zero time start time (%f) that ends on the past (%f)",
+        trajectory_start_time.seconds(), trajectory_end_time.seconds());
+      return false;
+    }
+  }
+
   for (auto i = 0ul; i < trajectory.joint_names.size(); ++i) {
     const std::string & incoming_joint_name = trajectory.joint_names[i];
 
@@ -721,6 +762,31 @@ bool JointTrajectoryController::validate_trajectory_msg(
         lifecycle_node_->get_logger(),
         "Incoming joint %s doesn't match the controller's joints.",
         incoming_joint_name.c_str());
+      return false;
+    }
+  }
+
+  rclcpp::Duration previous_traj_time(0);
+  for (auto i = 0ul; i < trajectory.points.size(); ++i) {
+    if ((i > 0) && (rclcpp::Duration(trajectory.points[i].time_from_start) <= previous_traj_time)) {
+      RCLCPP_ERROR(
+        lifecycle_node_->get_logger(),
+        "Time between points %u and %u is not strictly increasing, it is %f and %f respectively",
+        i - 1, i, previous_traj_time.seconds(),
+        rclcpp::Duration(trajectory.points[i].time_from_start).seconds());
+      return false;
+    }
+    previous_traj_time = trajectory.points[i].time_from_start;
+
+    const size_t joint_count = trajectory.joint_names.size();
+    const auto & points = trajectory.points;
+    if (!validate_trajectory_point_field(joint_count, points[i].positions, "positions", i, false) ||
+      !validate_trajectory_point_field(joint_count, points[i].velocities, "velocities", i, true) ||
+      !validate_trajectory_point_field(
+        joint_count, points[i].accelerations, "accelerations", i,
+        true) ||
+      !validate_trajectory_point_field(joint_count, points[i].effort, "effort", i, true))
+    {
       return false;
     }
   }

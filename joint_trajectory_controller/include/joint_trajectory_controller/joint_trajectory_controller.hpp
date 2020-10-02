@@ -24,6 +24,7 @@
 #include "control_msgs/msg/joint_trajectory_controller_state.hpp"
 #include "control_msgs/action/follow_joint_trajectory.hpp"
 #include "controller_interface/controller_interface.hpp"
+#include "hardware_interface/joint_handle.hpp"
 #include "hardware_interface/operation_mode_handle.hpp"
 #include "joint_trajectory_controller/tolerances.hpp"
 #include "joint_trajectory_controller/visibility_control.h"
@@ -44,8 +45,6 @@
 
 namespace hardware_interface
 {
-class JointCommandHandle;
-class JointStateHandle;
 class RobotHardware;
 }  // namespace hardware_interface
 namespace rclcpp_action
@@ -107,12 +106,13 @@ public:
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
   on_shutdown(const rclcpp_lifecycle::State & previous_state) override;
 
-private:
+protected:
   std::vector<std::string> joint_names_;
   std::vector<std::string> write_op_names_;
 
-  std::vector<hardware_interface::JointCommandHandle *> registered_joint_cmd_handles_;
-  std::vector<const hardware_interface::JointStateHandle *> registered_joint_state_handles_;
+  std::vector<hardware_interface::JointHandle> joint_position_command_handles_;
+  std::vector<hardware_interface::JointHandle> joint_position_state_handles_;
+  std::vector<hardware_interface::JointHandle> joint_velocity_state_handles_;
   std::vector<hardware_interface::OperationModeHandle *> registered_operation_mode_handles_;
 
   // TODO(karsten1987): eventually activate and deactive subscriber directly when its supported
@@ -125,7 +125,7 @@ private:
   std::shared_ptr<Trajectory> traj_home_point_ptr_ = nullptr;
   std::shared_ptr<trajectory_msgs::msg::JointTrajectory> traj_msg_home_ptr_ = nullptr;
   realtime_tools::RealtimeBuffer<std::shared_ptr<trajectory_msgs::msg::JointTrajectory>>
-  traj_msg_external_point_ptr_{nullptr};
+  traj_msg_external_point_ptr_;
 
   bool is_halted = false;
 
@@ -143,7 +143,7 @@ private:
   using RealtimeGoalHandlePtr = std::shared_ptr<RealtimeGoalHandle>;
 
   rclcpp_action::Server<FollowJTrajAction>::SharedPtr action_server_;
-  bool allow_partial_joints_goal_;
+  bool allow_partial_joints_goal_ = false;
   RealtimeGoalHandlePtr rt_active_goal_;     ///< Currently active action goal, if any.
   rclcpp::TimerBase::SharedPtr goal_handle_timer_;
   rclcpp::Duration action_monitor_period_ = rclcpp::Duration(RCUTILS_MS_TO_NS(50));
@@ -167,6 +167,11 @@ private:
   bool validate_trajectory_msg(const trajectory_msgs::msg::JointTrajectory & trajectory) const;
   void add_new_trajectory_msg(
     const std::shared_ptr<trajectory_msgs::msg::JointTrajectory> & traj_msg);
+  bool validate_trajectory_point_field(
+    size_t joint_names_size,
+    const std::vector<double> & vector_field,
+    const std::string & string_for_vector_field, size_t i,
+    bool allow_empty) const;
 
   SegmentTolerances default_tolerances_;
 
